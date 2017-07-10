@@ -8,31 +8,37 @@ import org.apache.sshd.server.ExitCallback;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 
-public class EchoCommandFactory implements CommandFactory {
+import static org.springframework.util.StringUtils.collectionToDelimitedString;
+
+public class HandlerCommandFactory implements CommandFactory {
+
+    private final CommandHandler handler;
+
+    public HandlerCommandFactory(CommandHandler handler) {
+        this.handler = handler;
+    }
 
     @Override
     public Command createCommand(String command) {
-        return new EchoCommand(command);
+        return new HandlerCommand(command);
     }
 
-    static class EchoCommand implements Command {
+    class HandlerCommand implements Command {
 
         private final String command;
 
         private OutputStream outputStream;
 
-        private InputStream inputStream;
-
         private ExitCallback exitCallback;
 
-        EchoCommand(String command) {
+        HandlerCommand(String command) {
             this.command = command;
         }
 
         @Override
         public void setInputStream(InputStream inputStream) {
-            this.inputStream = inputStream;
         }
 
         @Override
@@ -51,7 +57,8 @@ public class EchoCommandFactory implements CommandFactory {
 
         @Override
         public void start(Environment env) throws IOException {
-            outputStream.write(command.getBytes());
+            List<String> result = handler.onCommand(env.getEnv().get("USER"), command);
+            outputStream.write(collectionToDelimitedString(result, "\n").getBytes());
             outputStream.flush();
             exitCallback.onExit(0);
         }
